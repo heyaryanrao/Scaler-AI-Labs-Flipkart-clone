@@ -1,29 +1,9 @@
 const asyncErrorHandler = require('../middlewares/asyncErrorHandler');
-// const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const paytm = require('paytmchecksum');
 const https = require('https');
-const Payment = require('../models/paymentModel');
+const { createPayment, findPaymentByOrderId } = require('../models/paymentModel');
 const ErrorHandler = require('../utils/errorHandler');
 const { v4: uuidv4 } = require('uuid');
-
-// exports.processPayment = asyncErrorHandler(async (req, res, next) => {
-//     const myPayment = await stripe.paymentIntents.create({
-//         amount: req.body.amount,
-//         currency: "inr",
-//         metadata: {
-//             company: "Flipkart",
-//         },
-//     });
-
-//     res.status(200).json({
-//         success: true,
-//         client_secret: myPayment.client_secret, 
-//     });
-// });
-
-// exports.sendStripeApiKey = asyncErrorHandler(async (req, res, next) => {
-//     res.status(200).json({ stripeApiKey: process.env.STRIPE_API_KEY });
-// });
 
 // Process Payment
 exports.processPayment = asyncErrorHandler(async (req, res, next) => {
@@ -32,7 +12,6 @@ exports.processPayment = asyncErrorHandler(async (req, res, next) => {
 
     var params = {};
 
-    /* initialize an array */
     params["MID"] = process.env.PAYTM_MID;
     params["WEBSITE"] = process.env.PAYTM_WEBSITE;
     params["CHANNEL_ID"] = process.env.PAYTM_CHANNEL_ID;
@@ -40,7 +19,6 @@ exports.processPayment = asyncErrorHandler(async (req, res, next) => {
     params["ORDER_ID"] = "oid" + uuidv4();
     params["CUST_ID"] = process.env.PAYTM_CUST_ID;
     params["TXN_AMOUNT"] = JSON.stringify(amount);
-    // params["CALLBACK_URL"] = `${req.protocol}://${req.get("host")}/api/v1/callback`;
     params["CALLBACK_URL"] = `https://${req.get("host")}/api/v1/callback`;
     params["EMAIL"] = email;
     params["MOBILE_NO"] = phoneNo;
@@ -65,14 +43,11 @@ exports.processPayment = asyncErrorHandler(async (req, res, next) => {
 // Paytm Callback
 exports.paytmResponse = (req, res, next) => {
 
-    // console.log(req.body);
-
     let paytmChecksum = req.body.CHECKSUMHASH;
     delete req.body.CHECKSUMHASH;
 
     let isVerifySignature = paytm.verifySignature(req.body, process.env.PAYTM_MERCHANT_KEY, paytmChecksum);
     if (isVerifySignature) {
-        // console.log("Checksum Matched");
 
         var paytmParams = {};
 
@@ -87,14 +62,10 @@ exports.paytmResponse = (req, res, next) => {
                 "signature": checksum
             };
 
-            /* prepare JSON string for request */
             var post_data = JSON.stringify(paytmParams);
 
             var options = {
-                /* for Staging */
                 hostname: 'securegw-stage.paytm.in',
-                /* for Production */
-                // hostname: 'securegw.paytm.in',
                 port: 443,
                 path: '/v3/order/status',
                 method: 'POST',
@@ -104,7 +75,6 @@ exports.paytmResponse = (req, res, next) => {
                 }
             };
 
-            // Set up the request
             var response = "";
             var post_req = https.request(options, function (post_res) {
                 post_res.on('data', function (chunk) {
@@ -113,15 +83,11 @@ exports.paytmResponse = (req, res, next) => {
 
                 post_res.on('end', function () {
                     let { body } = JSON.parse(response);
-                    // let status = body.resultInfo.resultStatus;
-                    // res.json(body);
                     addPayment(body);
-                    // res.redirect(`${req.protocol}://${req.get("host")}/order/${body.orderId}`)
-                    res.redirect(`https://${req.get("host")}/order/${body.orderId}`)
+                    res.redirect(`https://${req.get("host")}/order/${body.orderId}`);
                 });
             });
 
-            // post the data
             post_req.write(post_data);
             post_req.end();
         });
@@ -133,7 +99,7 @@ exports.paytmResponse = (req, res, next) => {
 
 const addPayment = async (data) => {
     try {
-        await Payment.create(data);
+        await createPayment(data);
     } catch (error) {
         console.log("Payment Failed!");
     }
@@ -141,7 +107,7 @@ const addPayment = async (data) => {
 
 exports.getPaymentStatus = asyncErrorHandler(async (req, res, next) => {
 
-    const payment = await Payment.findOne({ orderId: req.params.id });
+    const payment = await findPaymentByOrderId(req.params.id);
 
     if (!payment) {
         return next(new ErrorHandler("Payment Details Not Found", 404));

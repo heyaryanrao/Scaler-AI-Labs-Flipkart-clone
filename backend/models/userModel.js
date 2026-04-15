@@ -1,78 +1,155 @@
-const mongoose = require('mongoose');
-const validator = require('validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { query } = require('../config/database');
 
-const userSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: [true, "Please Enter Your Name"],
-    },
-    email: {
-        type: String,
-        required: [true, "Please Enter Your Email"],
-        unique: true,
-    },
-    gender: {
-        type: String,
-        required: [true, "Please Enter Gender"]
-    },
-    password: {
-        type: String,
-        required: [true, "Please Enter Your Password"],
-        minLength: [8, "Password should have atleast 8 chars"],
-        select: false,
-    },
-    avatar: {
-        public_id: {
-            type: String,
-        },
-        url: {
-            type: String,
-        }
-    },
-    role: {
-        type: String,
-        default: "user",
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now,
-    },
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
-});
+// --- Helper functions (replacing Mongoose instance methods) ---
 
-userSchema.pre("save", async function (next) {
+const hashPassword = async (password) => {
+    return await bcrypt.hash(password, 10);
+};
 
-    if (!this.isModified("password")) {
-        next();
-    }
+const comparePassword = async (enteredPassword, hashedPassword) => {
+    return await bcrypt.compare(enteredPassword, hashedPassword);
+};
 
-    this.password = await bcrypt.hash(this.password, 10);
-});
-
-userSchema.methods.getJWTToken = function () {
-    return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE
+const getJWTToken = (userId) => {
+    return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE,
     });
-}
+};
 
-userSchema.methods.comparePassword = async function (enteredPassword) {
-    return await bcrypt.compare(enteredPassword, this.password);
-}
+const getResetPasswordToken = () => {
+    const resetToken = crypto.randomBytes(20).toString('hex');
+    const resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetPasswordExpire = new Date(Date.now() + 15 * 60 * 1000);
+    return { resetToken, resetPasswordToken, resetPasswordExpire };
+};
 
-userSchema.methods.getResetPasswordToken = async function () {
+// Format user row to match Mongoose output shape
+const formatUser = (row) => {
+    if (!row) return null;
+    return {
+        _id: row.id,
+        name: row.name,
+        email: row.email,
+        gender: row.gender,
+        avatar: {
+            public_id: row.avatar_public_id,
+            url: row.avatar_url,
+        },
+        role: row.role,
+        createdAt: row.created_at,
+        // include password only when explicitly selected
+        ...(row.password ? { password: row.password } : {}),
+    };
+};
 
-    // generate token
-    const resetToken = crypto.randomBytes(20).toString("hex");
+// --- Query functions ---
 
-    // generate hash token and add to db
-    this.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
-    this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+const createUser = async ({ name, email, gender, password, avatar }) => {
+    const hashedPassword = await hashPassword(password);
+    const result = await query(
+        `INSERT INTO users (name, email, gender, password, avatar_public_id, avatar_url)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, name, email, gender, avatar_public_id, avatar_url, role, created_at`,
+        [name, email, gender, hashedPassword, avatar.public_id, avatar.url]
+    );
+    return formatUser(result.rows[0]);
+};
 
-    return resetToken;
-}
+const findUserByEmail = async (email) => {
+    const result = await query(
+        `SELECT * FROM users WHERE email = $1`,
+        [email]
+    );
+    return formatUser(result.rows[0]);
+};
 
-module.exports = mongoose.model('User', userSchema);
+const findUserById = async (id) => {
+    const result = await query(
+        `SELECT id, name, email, gender, avatar_public_id, avatar_url, role, created_at FROM users WHERE id = $1`,
+        [id]
+    );
+    return formatUser(result.rows[0]);
+};
+
+const findUserByIdWithPassword = async (id) => {
+    const result = await query(
+        `SELECT * FROM users WHERE id = $1`,
+        [id]
+    );
+    return formatUser(result.rows[0]);
+};
+
+const updateUser = async (id, data) => {
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    for (const [key, value] of Object.entries(data)) {
+        fields.push(`${key} = $${idx}`);
+        values.push(value);
+        idx++;
+    }
+    values.push(id);
+
+    const result = await query(
+        `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}
+         RETURNING id, name, email, gender, avatar_public_id, avatar_url, role, created_at`,
+        values
+    );
+    return formatUser(result.rows[0]);
+};
+
+const findAllUsers = async () => {
+    const result = await query(
+        `SELECT id, name, email, gender, avatar_public_id, avatar_url, role, created_at FROM users`
+    );
+    return result.rows.map(formatUser);
+};
+
+const deleteUser = async (id) => {
+    await query(`DELETE FROM users WHERE id = $1`, [id]);
+};
+
+const setResetToken = async (id, token, expire) => {
+    await query(
+        `UPDATE users SET reset_password_token = $1, reset_password_expire = $2 WHERE id = $3`,
+        [token, expire, id]
+    );
+};
+
+const findByResetToken = async (token) => {
+    const result = await query(
+        `SELECT * FROM users WHERE reset_password_token = $1 AND reset_password_expire > NOW()`,
+        [token]
+    );
+    return formatUser(result.rows[0]);
+};
+
+const updatePassword = async (id, password) => {
+    const hashedPassword = await hashPassword(password);
+    await query(
+        `UPDATE users SET password = $1, reset_password_token = NULL, reset_password_expire = NULL WHERE id = $2`,
+        [hashedPassword, id]
+    );
+};
+
+module.exports = {
+    createUser,
+    findUserByEmail,
+    findUserById,
+    findUserByIdWithPassword,
+    updateUser,
+    findAllUsers,
+    deleteUser,
+    setResetToken,
+    findByResetToken,
+    updatePassword,
+    comparePassword,
+    getJWTToken,
+    getResetPasswordToken,
+    hashPassword,
+    formatUser,
+};

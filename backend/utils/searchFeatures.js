@@ -1,51 +1,31 @@
+// SearchFeatures is no longer needed as a Mongoose query chain builder.
+// Search, filter, and pagination are now handled directly in productModel.js
+// via SQL WHERE/ILIKE/LIMIT/OFFSET clauses.
+//
+// This file is kept for backward compatibility but exports a no-op.
+// The actual search logic lives in productModel.findProductsFiltered()
+
 class SearchFeatures {
-    constructor(query, queryString) {
-        this.query = query
-        this.queryString = queryString
+    constructor(queryParams) {
+        this.queryParams = queryParams;
     }
 
-    search() {
-        const keyword = this.queryString.keyword ? {
-            name: {
-                $regex: this.queryString.keyword,
-                $options: "i",
-            }
-        } : {};
+    // Parse query params into filter object for productModel
+    parse() {
+        const { keyword, category, page } = this.queryParams;
+        const priceGte = this.queryParams['price[gte]'] || this.queryParams.price?.gte;
+        const priceLte = this.queryParams['price[lte]'] || this.queryParams.price?.lte;
+        const ratingsGte = this.queryParams['ratings[gte]'] || this.queryParams.ratings?.gte;
 
-        // console.log(keyword);
-
-        this.query = this.query.find({ ...keyword });
-        return this;
+        return {
+            keyword: keyword || null,
+            category: category || null,
+            priceGte: priceGte ? parseFloat(priceGte) : null,
+            priceLte: priceLte ? parseFloat(priceLte) : null,
+            ratingsGte: ratingsGte ? parseFloat(ratingsGte) : null,
+            page: parseInt(page) || 1,
+        };
     }
-
-    filter() {
-        const queryCopy = { ...this.queryString }
-
-        // fields to remove for category
-        const removeFields = ["keyword", "page", "limit"];
-
-        // console.log(queryCopy);
-        removeFields.forEach(key => delete queryCopy[key]);
-        // console.log(queryCopy);
-
-        // price filter
-        let queryString = JSON.stringify(queryCopy);
-        queryString = queryString.replace(/\b(gt|gte|lt|lte)\b/g, key => `$${key}`);
-
-        // console.log(JSON.parse(queryString));
-
-        this.query = this.query.find(JSON.parse(queryString));
-        return this;
-    }
-
-    pagination(resultPerPage) {
-        const currentPage = Number(this.queryString.page) || 1;
-
-        const skipProducts = resultPerPage * (currentPage - 1);
-
-        this.query = this.query.limit(resultPerPage).skip(skipProducts);
-        return this;
-    }
-};
+}
 
 module.exports = SearchFeatures;
