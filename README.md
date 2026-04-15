@@ -1,7 +1,85 @@
-# Flipkart - MERN
+# Flipkart Clone - MERN Stack
+
 Full-Stack Flipkart with Admin Dashboard & Paytm Payment Gateway.
 
 [Visit Now](https://flipkartweb-mern.vercel.app) 🚀
+
+---
+
+## 🚀 Getting Started
+
+Follow these instructions to get a copy of the project up and running on your local machine.
+
+### Prerequisites
+
+- **Node.js** (v14 or higher)
+- **NPM** (v6 or higher)
+- **PostgreSQL** (Local or Cloud instance like Neon)
+- **Cloudinary Account** (For image storage)
+- **SendGrid Account** (For email services)
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/jigarsable/flipkart-mern.git
+   cd flipkart-mern
+   ```
+
+2. **Install Root Dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Install Frontend Dependencies:**
+   ```bash
+   npm install --prefix frontend
+   ```
+
+### Configuration
+
+Create a `config.env` file inside `backend/config/` directory and add the following environment variables:
+
+```env
+PORT=4000
+NODE_ENV=development
+
+DATABASE_URL=your_postgresql_url
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRE=7d
+COOKIE_EXPIRE=5
+
+# Cloudinary
+CLOUDINARY_NAME=your_cloudinary_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+
+# SendGrid
+SENDGRID_API_KEY=your_sendgrid_api_key
+SENDGRID_MAIL=your_verified_sendgrid_email
+
+# Paytm (Optional for Local testing)
+PAYTM_MID=your_paytm_mid
+PAYTM_WEBSITE=your_paytm_website
+PAYTM_CHANNEL_ID=your_paytm_channel_id
+PAYTM_INDUSTRY_TYPE=your_paytm_industry_type
+PAYTM_CUST_ID=your_paytm_cust_id
+PAYTM_MERCHANT_KEY=your_paytm_merchant_key
+```
+
+### Running the Application
+
+To run both the frontend and backend concurrently in development mode, use:
+
+```bash
+npm run dev
+```
+
+The application will be available at:
+- **Frontend:** `http://localhost:3000`
+- **Backend:** `http://localhost:4000`
+
+---
 
 ## 🖥️ Tech Stack
 **Frontend:**
@@ -17,8 +95,8 @@ Full-Stack Flipkart with Admin Dashboard & Paytm Payment Gateway.
 
 ![nodejs](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)&nbsp;
 ![expressjs](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)&nbsp;
-![mongodb](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)&nbsp;
-![jwt](	https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=JSON%20web%20tokens&logoColor=white)&nbsp;
+![postgresql](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)&nbsp;
+![jwt](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=JSON%20web%20tokens&logoColor=white)&nbsp;
 
 **Payment Gateway:**
 
@@ -27,6 +105,8 @@ Full-Stack Flipkart with Admin Dashboard & Paytm Payment Gateway.
 **Cloud Storage:** [Cloudinary](https://cloudinary.com/)
 
 **Mail Service:** [Sendgrid](https://sendgrid.com/)
+
+---
 
 ## 🚀 Features
 
@@ -72,6 +152,8 @@ Full-Stack Flipkart with Admin Dashboard & Paytm Payment Gateway.
 - Review Management: 📜 Admins can view and delete product reviews.
 - Stock Management: 📉 Product stock is automatically decreased upon shipment.
 
+---
+
 ## Sneak Peek of Admin Dashboard 🙈 :
 ![Capture](https://user-images.githubusercontent.com/64949957/153995268-0cb769b9-e0ee-48ea-83c1-09b881df4101.PNG)
 
@@ -86,9 +168,12 @@ Full-Stack Flipkart with Admin Dashboard & Paytm Payment Gateway.
   </tr>
 </table>
 
+---
+
 <h2>📬 Contact</h2>
 
 Feel free to reach me through the below handles if you'd like to contact me.
 
 [![linkedin](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/jigar-sablee)
 [![instagram](https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://www.instagram.com/jigarsable.dev)
+
